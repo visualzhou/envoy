@@ -89,8 +89,8 @@ TransportSocketOptionsUtility::fromFilterState(const StreamInfo::FilterState& fi
   }
 
   if (filter_state.hasData<ProxyProtocolFilterState>(ProxyProtocolFilterState::key())) {
-    const auto& proxy_protocol_filter_state =
-        filter_state.getDataReadOnly<ProxyProtocolFilterState>(ProxyProtocolFilterState::key());
+    auto& proxy_protocol_filter_state =
+        filter_state.getDataMutable<ProxyProtocolFilterState>(ProxyProtocolFilterState::key());
     proxy_protocol_options.emplace(proxy_protocol_filter_state.value());
     needs_transport_socket_options = true;
   }

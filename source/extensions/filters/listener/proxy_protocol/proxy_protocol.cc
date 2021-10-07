@@ -20,6 +20,7 @@
 #include "source/common/common/safe_memcpy.h"
 #include "source/common/common/utility.h"
 #include "source/common/network/address_impl.h"
+#include "source/common/network/proxy_protocol_filter_state.h"
 #include "source/common/network/utility.h"
 #include "source/extensions/common/proxy_protocol/proxy_protocol_header.h"
 
@@ -43,10 +44,14 @@ namespace Extensions {
 namespace ListenerFilters {
 namespace ProxyProtocol {
 
+const std::string FilterStateKey("envoy.network.proxy_protocol_options");
+
 Config::Config(
     Stats::Scope& scope,
     const envoy::extensions::filters::listener::proxy_protocol::v3::ProxyProtocol& proto_config)
     : stats_{ALL_PROXY_PROTOCOL_STATS(POOL_COUNTER(scope))} {
+  ENVOY_LOG(debug,
+            fmt::format("XXX ProxyProtocol Config constructor: {}", proto_config.DebugString()));
   for (const auto& rule : proto_config.rules()) {
     tlv_types_[0xFF & rule.tlv_type()] = rule.on_tlv_present();
   }
@@ -66,13 +71,13 @@ size_t Config::numberOfNeededTlvTypes() const { return tlv_types_.size(); }
 Network::FilterStatus Filter::onAccept(Network::ListenerFilterCallbacks& cb) {
   ENVOY_LOG(debug, "proxy_protocol: new connection accepted");
   Network::ConnectionSocket& socket = cb.socket();
-  socket.ioHandle().initializeFileEvent(
-      cb.dispatcher(),
-      [this](uint32_t events) {
-        ASSERT(events == Event::FileReadyType::Read);
-        onRead();
-      },
-      Event::PlatformDefaultTriggerType, Event::FileReadyType::Read);
+  socket.ioHandle().initializeFileEvent(cb.dispatcher(),
+                                        [this](uint32_t events) {
+                                          ASSERT(events == Event::FileReadyType::Read);
+                                          onRead();
+                                        },
+                                        Event::PlatformDefaultTriggerType,
+                                        Event::FileReadyType::Read);
   cb_ = &cb;
   return Network::FilterStatus::StopIteration;
 }
@@ -131,6 +136,8 @@ ReadOrParseState Filter::onReadWorker() {
       socket.connectionInfoProvider().restoreLocalAddress(
           proxy_protocol_header_.value().local_address_);
     }
+    ENVOY_LOG(debug, "XXX remote address: {}",
+              proxy_protocol_header_.value().remote_address_->asString());
     socket.connectionInfoProvider().setRemoteAddress(
         proxy_protocol_header_.value().remote_address_);
   }
@@ -365,6 +372,8 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
       return false;
     }
 
+    ENVOY_LOG(debug, fmt::format("XXX Parsing TLV type: {}", tlv_type));
+
     // Only save to dynamic metadata if this type of TLV is needed.
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
     if (nullptr != key_value_pair) {
@@ -380,6 +389,19 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
           (*cb_->dynamicMetadata().mutable_filter_metadata())[metadata_key]);
       metadata.mutable_fields()->insert({key_value_pair->key(), metadata_value});
       cb_->setDynamicMetadata(metadata_key, metadata);
+      ENVOY_LOG(debug,
+                "XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
+                "key_value_pair->key(): {}, metadata: {}",
+                metadata_key, key_value_pair->key(), metadata.DebugString());
+
+      // Save TLV to the filter state.
+      if (cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
+              FilterStateKey)) {
+        auto& state = cb_->filterState().getDataMutable<Network::ProxyProtocolFilterState>(
+            FilterStateKey);
+        state.value().tlv_vector_.emplace_back(tlv_type, key_value_pair->key(), metadata_value.string_value());
+      }
+
     } else {
       ENVOY_LOG(trace, "proxy_protocol: Skip TLV of type {} since it's not needed", tlv_type);
     }

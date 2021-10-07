@@ -65,10 +65,17 @@ void UpstreamProxyProtocolSocket::generateHeaderV1() {
 }
 
 void UpstreamProxyProtocolSocket::generateHeaderV2() {
+  ENVOY_LOG(debug, fmt::format("XXX generateHeaderV2: {}", 
+    callbacks_->connection().streamInfo().dynamicMetadata().DebugString()));  
   if (!options_ || !options_->proxyProtocolOptions().has_value()) {
+    ENVOY_LOG(debug, fmt::format("XXX UpstreamProxyProtocol: {}", header_buffer_.toString()));
     Common::ProxyProtocol::generateV2LocalHeader(header_buffer_);
   } else {
+      
     const auto options = options_->proxyProtocolOptions().value();
+    ENVOY_LOG(debug, fmt::format("XXX UpstreamProxyProtocol: {}, options: src {}, dst {}",
+      header_buffer_.toString(), 
+      options.src_addr_->ip()->addressAsString(), options.dst_addr_->ip()->addressAsString()));
     Common::ProxyProtocol::generateV2Header(*options.src_addr_->ip(), *options.dst_addr_->ip(),
                                             header_buffer_);
   }
