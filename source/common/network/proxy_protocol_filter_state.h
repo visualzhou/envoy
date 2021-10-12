@@ -12,11 +12,11 @@ namespace Network {
 class ProxyProtocolFilterState : public StreamInfo::FilterState::Object {
 public:
   ProxyProtocolFilterState(Network::ProxyProtocolData options) : options_(options) {}
-  Network::ProxyProtocolData& value() { return options_; }
+  const Network::ProxyProtocolData& value() const { return options_; }
   static const std::string& key();
 
 private:
-  Network::ProxyProtocolData options_;
+  const Network::ProxyProtocolData options_;
 };
 
 } // namespace Network

@@ -103,6 +103,20 @@ ReadOrParseState Filter::onReadWorker() {
       return read_header_state;
     }
   }
+
+  if (proxy_protocol_header_.has_value() &&
+      !cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
+          Network::ProxyProtocolFilterState::key())) {
+    auto tlvs = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
+    cb_->filterState().setData(
+        Network::ProxyProtocolFilterState::key(),
+        std::make_unique<Network::ProxyProtocolFilterState>(Network::ProxyProtocolData{
+            proxy_protocol_header_.value().remote_address_,
+            proxy_protocol_header_.value().local_address_}),
+        StreamInfo::FilterState::StateType::Mutable, StreamInfo::FilterState::LifeSpan::Connection);
+    ENVOY_LOG(debug, "XXX Create filter state in listener filter");
+  }
+
   if (proxy_protocol_header_.has_value()) {
     const ReadOrParseState read_ext_state = readExtensions(socket.ioHandle());
     if (read_ext_state != ReadOrParseState::Done) {
@@ -136,8 +150,9 @@ ReadOrParseState Filter::onReadWorker() {
       socket.connectionInfoProvider().restoreLocalAddress(
           proxy_protocol_header_.value().local_address_);
     }
-    ENVOY_LOG(debug, "XXX remote address: {}",
-              proxy_protocol_header_.value().remote_address_->asString());
+    ENVOY_LOG(debug, "XXX remote address: {}, local address: {}",
+              proxy_protocol_header_.value().remote_address_->asString(),
+              proxy_protocol_header_.value().local_address_->asString());
     socket.connectionInfoProvider().setRemoteAddress(
         proxy_protocol_header_.value().remote_address_);
   }
@@ -390,16 +405,24 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
       metadata.mutable_fields()->insert({key_value_pair->key(), metadata_value});
       cb_->setDynamicMetadata(metadata_key, metadata);
       ENVOY_LOG(debug,
-                "XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
+                fmt::format("XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
                 "key_value_pair->key(): {}, metadata: {}",
-                metadata_key, key_value_pair->key(), metadata.DebugString());
+                metadata_key, key_value_pair->key(), metadata.DebugString()));
 
       // Save TLV to the filter state.
       if (cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
               FilterStateKey)) {
+        ENVOY_LOG(debug, fmt::format("XXX adding {} to ProxyProtocolFilterState", tlv_type));
         auto& state = cb_->filterState().getDataMutable<Network::ProxyProtocolFilterState>(
             FilterStateKey);
-        state.value().tlv_vector_.emplace_back(tlv_type, key_value_pair->key(), metadata_value.string_value());
+        Network::ProxyProtocolTLV tlv;
+        tlv.type= tlv_type;
+        tlv.key = key_value_pair->key();
+        tlv.value =  metadata_value.string_value();
+        // if (!state.value().tlv_vector_) {
+        //   state.value().tlv_vector_ = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
+        // }
+        state.value().tlv_vector_->emplace_back(std::move(tlv));
       }
 
     } else {
