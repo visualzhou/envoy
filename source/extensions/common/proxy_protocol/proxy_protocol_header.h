@@ -4,6 +4,7 @@
 #include "envoy/config/core/v3/proxy_protocol.pb.h"
 #include "envoy/network/address.h"
 #include "envoy/network/connection.h"
+#include "envoy/network/proxy_protocol.h"
 
 namespace Envoy {
 namespace Extensions {
@@ -50,7 +51,7 @@ void generateV1Header(const Network::Address::Ip& source_address,
 // TCP is assumed as the transport protocol
 void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
                       uint32_t dst_port, Network::Address::IpVersion ip_version,
-                      Buffer::Instance& out);
+                      uint16_t extension_length, Buffer::Instance& out);
 void generateV2Header(const Network::Address::Ip& source_address,
                       const Network::Address::Ip& dest_address, Buffer::Instance& out);
 
@@ -60,6 +61,10 @@ void generateProxyProtoHeader(const envoy::config::core::v3::ProxyProtocolConfig
 
 // Generates the v2 PROXY protocol local command header and adds it to the specified buffer
 void generateV2LocalHeader(Buffer::Instance& out);
+
+// Generates the v2 PROXY protocol header and the TLV vector into the specified buffer.
+// TODO: fix const.
+void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out);
 
 } // namespace ProxyProtocol
 } // namespace Common

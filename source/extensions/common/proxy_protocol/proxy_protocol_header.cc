@@ -43,7 +43,7 @@ void generateV1Header(const Network::Address::Ip& source_address,
 
 void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
                       uint32_t dst_port, Network::Address::IpVersion ip_version,
-                      Buffer::Instance& out) {
+                      uint16_t extension_length, Buffer::Instance& out) {
   out.add(PROXY_PROTO_V2_SIGNATURE, PROXY_PROTO_V2_SIGNATURE_LEN);
 
   const uint8_t version_and_command = PROXY_PROTO_V2_VERSION << 4 | PROXY_PROTO_V2_ONBEHALF_OF;
@@ -64,7 +64,8 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
   uint8_t addr_length[2]{0, 0};
   switch (ip_version) {
   case Network::Address::IpVersion::v4: {
-    addr_length[1] = PROXY_PROTO_V2_ADDR_LEN_INET;
+    // TODO: handle network order correctly.
+    addr_length[1] = PROXY_PROTO_V2_ADDR_LEN_INET + extension_length;
     out.add(addr_length, 2);
     const uint32_t net_src_addr =
         Network::Address::Ipv4Instance(src_addr, src_port).ip()->ipv4()->address();
@@ -75,6 +76,7 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
     break;
   }
   case Network::Address::IpVersion::v6: {
+    // TODO: support TLV on ipv6.
     addr_length[1] = PROXY_PROTO_V2_ADDR_LEN_INET6;
     out.add(addr_length, 2);
     const absl::uint128 net_src_addr =
@@ -96,7 +98,7 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
 void generateV2Header(const Network::Address::Ip& source_address,
                       const Network::Address::Ip& dest_address, Buffer::Instance& out) {
   generateV2Header(source_address.addressAsString(), dest_address.addressAsString(),
-                   source_address.port(), dest_address.port(), source_address.version(), out);
+                   source_address.port(), dest_address.port(), source_address.version(), 0, out);
 }
 
 void generateProxyProtoHeader(const envoy::config::core::v3::ProxyProtocolConfig& config,
@@ -116,6 +118,27 @@ void generateV2LocalHeader(Buffer::Instance& out) {
   out.add(PROXY_PROTO_V2_SIGNATURE, PROXY_PROTO_V2_SIGNATURE_LEN);
   const uint8_t addr_fam_protocol_and_length[4]{PROXY_PROTO_V2_VERSION << 4, 0, 0, 0};
   out.add(addr_fam_protocol_and_length, 4);
+}
+
+void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out) {
+  uint16_t extension_length = 0;
+  for (Network::ProxyProtocolTLV& tlv : *prox_proto_data.tlv_vector_) {
+    extension_length += 3 + tlv.value.size();
+  }
+  const auto& src = *prox_proto_data.src_addr_->ip();
+  const auto& dst = *prox_proto_data.dst_addr_->ip();
+  generateV2Header(src.addressAsString(), dst.addressAsString(), src.port(), dst.port(),
+                   src.version(), extension_length, out);
+
+  // Generate the TLV vector.
+  for (Network::ProxyProtocolTLV& tlv : *prox_proto_data.tlv_vector_) {
+    out.add(&tlv.type, 1);
+    // TODO: check the size of value is less than 2^16.
+    size_t size = tlv.value.size();
+    out.add(reinterpret_cast<char*>(&size) + 1, 1);
+    out.add(&size, 1);
+    out.add(tlv.value.c_str(), tlv.value.size());
+  }
 }
 
 } // namespace ProxyProtocol

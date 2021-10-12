@@ -13,11 +13,13 @@ struct ProxyProtocolTLV {
   std::string value;
 };
 
+using ProxyProtocolTLVVector = std::vector<ProxyProtocolTLV>;
+using ProxyProtocolTLVVectorPtr = std::shared_ptr<std::vector<ProxyProtocolTLV>>;
+
 struct ProxyProtocolData {
   const Network::Address::InstanceConstSharedPtr src_addr_;
   const Network::Address::InstanceConstSharedPtr dst_addr_;
-  mutable std::shared_ptr<std::vector<ProxyProtocolTLV>> tlv_vector_ 
-  = std::make_shared<std::vector<ProxyProtocolTLV>>();
+  mutable ProxyProtocolTLVVectorPtr tlv_vector_ = std::make_shared<ProxyProtocolTLVVector>();
   std::string asStringForHash() const {
     return std::string(src_addr_ ? src_addr_->asString() : "null") +
            (dst_addr_ ? dst_addr_->asString() : "null");
