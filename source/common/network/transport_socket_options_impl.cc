@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "source/common/common/scalar_to_byte_vector.h"
 #include "source/common/common/utility.h"
@@ -12,6 +13,7 @@
 #include "source/common/network/proxy_protocol_filter_state.h"
 #include "source/common/network/upstream_server_name.h"
 #include "source/common/network/upstream_subject_alt_names.h"
+#include "source/common/common/logger.h"
 
 namespace Envoy {
 namespace Network {
@@ -89,8 +91,10 @@ TransportSocketOptionsUtility::fromFilterState(const StreamInfo::FilterState& fi
   }
 
   if (filter_state.hasData<ProxyProtocolFilterState>(ProxyProtocolFilterState::key())) {
-    auto& proxy_protocol_filter_state =
-        filter_state.getDataMutable<ProxyProtocolFilterState>(ProxyProtocolFilterState::key());
+    // ENVOY_LOG(debug, "XXX create options");
+    std::cout << "XXX create options" << std::endl;
+    const auto& proxy_protocol_filter_state =
+        filter_state.getDataReadOnly<ProxyProtocolFilterState>(ProxyProtocolFilterState::key());
     proxy_protocol_options.emplace(proxy_protocol_filter_state.value());
     needs_transport_socket_options = true;
   }

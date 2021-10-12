@@ -396,6 +396,7 @@ envoy_cc_library(
         "//envoy/network:proxy_protocol_options_lib",
         "//envoy/network:transport_socket_interface",
         "//envoy/stream_info:filter_state_interface",
+        "//source/common/common:minimal_logger_lib",
         "//source/common/common:scalar_to_byte_vector_lib",
         "//source/common/common:utility_lib",
     ],
