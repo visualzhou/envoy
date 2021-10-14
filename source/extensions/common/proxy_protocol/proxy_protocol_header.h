@@ -64,7 +64,8 @@ void generateV2LocalHeader(Buffer::Instance& out);
 
 // Generates the v2 PROXY protocol header and the TLV vector into the specified buffer.
 // TODO: fix const.
-void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out);
+void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data,
+                            Buffer::Instance& out);
 
 } // namespace ProxyProtocol
 } // namespace Common

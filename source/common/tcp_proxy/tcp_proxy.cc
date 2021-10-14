@@ -377,7 +377,7 @@ Network::FilterStatus Filter::initializeUpstreamConnection() {
               downstreamConnection()->connectionInfoProvider().localAddress()}),
           StreamInfo::FilterState::StateType::Mutable,
           StreamInfo::FilterState::LifeSpan::Connection);
-          ENVOY_LOG(debug, "XXX Filter::initializeUpstreamConnection in tcp_proxy");
+      ENVOY_LOG(debug, "XXX Filter::initializeUpstreamConnection in tcp_proxy");
     }
     transport_socket_options_ = Network::TransportSocketOptionsUtility::fromFilterState(
         downstreamConnection()->streamInfo().filterState());

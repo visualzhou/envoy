@@ -1,19 +1,19 @@
 #include "source/common/network/transport_socket_options_impl.h"
 
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <iostream>
 
+#include "source/common/common/logger.h"
 #include "source/common/common/scalar_to_byte_vector.h"
 #include "source/common/common/utility.h"
 #include "source/common/network/application_protocol.h"
 #include "source/common/network/proxy_protocol_filter_state.h"
 #include "source/common/network/upstream_server_name.h"
 #include "source/common/network/upstream_subject_alt_names.h"
-#include "source/common/common/logger.h"
 
 namespace Envoy {
 namespace Network {
