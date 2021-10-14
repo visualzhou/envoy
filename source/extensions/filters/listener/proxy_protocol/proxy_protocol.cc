@@ -71,13 +71,13 @@ size_t Config::numberOfNeededTlvTypes() const { return tlv_types_.size(); }
 Network::FilterStatus Filter::onAccept(Network::ListenerFilterCallbacks& cb) {
   ENVOY_LOG(debug, "proxy_protocol: new connection accepted");
   Network::ConnectionSocket& socket = cb.socket();
-  socket.ioHandle().initializeFileEvent(cb.dispatcher(),
-                                        [this](uint32_t events) {
-                                          ASSERT(events == Event::FileReadyType::Read);
-                                          onRead();
-                                        },
-                                        Event::PlatformDefaultTriggerType,
-                                        Event::FileReadyType::Read);
+  socket.ioHandle().initializeFileEvent(
+      cb.dispatcher(),
+      [this](uint32_t events) {
+        ASSERT(events == Event::FileReadyType::Read);
+        onRead();
+      },
+      Event::PlatformDefaultTriggerType, Event::FileReadyType::Read);
   cb_ = &cb;
   return Network::FilterStatus::StopIteration;
 }
@@ -110,9 +110,9 @@ ReadOrParseState Filter::onReadWorker() {
     auto tlvs = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
     cb_->filterState().setData(
         Network::ProxyProtocolFilterState::key(),
-        std::make_unique<Network::ProxyProtocolFilterState>(Network::ProxyProtocolData{
-            proxy_protocol_header_.value().remote_address_,
-            proxy_protocol_header_.value().local_address_}),
+        std::make_unique<Network::ProxyProtocolFilterState>(
+            Network::ProxyProtocolData{proxy_protocol_header_.value().remote_address_,
+                                       proxy_protocol_header_.value().local_address_}),
         StreamInfo::FilterState::StateType::Mutable, StreamInfo::FilterState::LifeSpan::Connection);
     ENVOY_LOG(debug, "XXX Create filter state in listener filter");
   }
@@ -404,21 +404,19 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
           (*cb_->dynamicMetadata().mutable_filter_metadata())[metadata_key]);
       metadata.mutable_fields()->insert({key_value_pair->key(), metadata_value});
       cb_->setDynamicMetadata(metadata_key, metadata);
-      ENVOY_LOG(debug,
-                fmt::format("XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
-                "key_value_pair->key(): {}, metadata: {}",
-                metadata_key, key_value_pair->key(), metadata.DebugString()));
+      ENVOY_LOG(debug, fmt::format("XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
+                                   "key_value_pair->key(): {}, metadata: {}",
+                                   metadata_key, key_value_pair->key(), metadata.DebugString()));
 
       // Save TLV to the filter state.
-      if (cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
-              FilterStateKey)) {
+      if (cb_->filterState().hasData<Network::ProxyProtocolFilterState>(FilterStateKey)) {
         ENVOY_LOG(debug, fmt::format("XXX adding {} to ProxyProtocolFilterState", tlv_type));
-        auto& state = cb_->filterState().getDataMutable<Network::ProxyProtocolFilterState>(
-            FilterStateKey);
+        auto& state =
+            cb_->filterState().getDataMutable<Network::ProxyProtocolFilterState>(FilterStateKey);
         Network::ProxyProtocolTLV tlv;
-        tlv.type= tlv_type;
+        tlv.type = tlv_type;
         tlv.key = key_value_pair->key();
-        tlv.value =  metadata_value.string_value();
+        tlv.value = metadata_value.string_value();
         // if (!state.value().tlv_vector_) {
         //   state.value().tlv_vector_ = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
         // }

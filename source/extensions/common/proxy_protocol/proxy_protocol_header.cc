@@ -120,7 +120,8 @@ void generateV2LocalHeader(Buffer::Instance& out) {
   out.add(addr_fam_protocol_and_length, 4);
 }
 
-void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out) {
+void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data,
+                            Buffer::Instance& out) {
   uint16_t extension_length = 0;
   for (Network::ProxyProtocolTLV& tlv : *prox_proto_data.tlv_vector_) {
     extension_length += 3 + tlv.value.size();

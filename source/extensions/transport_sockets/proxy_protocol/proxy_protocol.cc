@@ -65,19 +65,22 @@ void UpstreamProxyProtocolSocket::generateHeaderV1() {
 }
 
 void UpstreamProxyProtocolSocket::generateHeaderV2() {
-  ENVOY_LOG(debug, fmt::format("XXX generateHeaderV2: {}", 
-    callbacks_->connection().streamInfo().dynamicMetadata().DebugString()));  
+  ENVOY_LOG(debug,
+            fmt::format("XXX generateHeaderV2: {}",
+                        callbacks_->connection().streamInfo().dynamicMetadata().DebugString()));
   if (!options_ || !options_->proxyProtocolOptions().has_value()) {
     ENVOY_LOG(debug, fmt::format("XXX UpstreamProxyProtocol: {}", header_buffer_.toString()));
     Common::ProxyProtocol::generateV2LocalHeader(header_buffer_);
   } else {
-      
+
     const auto options = options_->proxyProtocolOptions().value();
-    ENVOY_LOG(debug, fmt::format("XXX UpstreamProxyProtocol: {}, options: src {}, dst {}",
-      header_buffer_.toString(), 
-      options.src_addr_->ip()->addressAsString(), options.dst_addr_->ip()->addressAsString()));
+    ENVOY_LOG(debug,
+              fmt::format("XXX UpstreamProxyProtocol: {}, options: src {}, dst {}",
+                          header_buffer_.toString(), options.src_addr_->ip()->addressAsString(),
+                          options.dst_addr_->ip()->addressAsString()));
     if (!options.tlv_vector_->empty()) {
-      ENVOY_LOG(debug, fmt::format("XXX Got TLV on upstream: first type: {}", options.tlv_vector_->front().key));
+      ENVOY_LOG(debug, fmt::format("XXX Got TLV on upstream: first type: {}",
+                                   options.tlv_vector_->front().key));
     }
     Common::ProxyProtocol::generateV2HeaderAndTLV(options, header_buffer_);
   }
