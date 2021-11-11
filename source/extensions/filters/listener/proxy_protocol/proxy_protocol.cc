@@ -6,6 +6,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "envoy/common/exception.h"
 #include "envoy/common/platform.h"
@@ -64,6 +65,11 @@ const KeyValuePair* Config::isTlvTypeNeeded(uint8_t type) const {
   }
 
   return nullptr;
+}
+
+bool Config::isPassThroughTlvTypeNeeded(uint8_t type) const {
+  // TODO: read config.
+  return true;
 }
 
 size_t Config::numberOfNeededTlvTypes() const { return tlv_types_.size(); }
@@ -390,11 +396,12 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
     ENVOY_LOG(debug, fmt::format("XXX Parsing TLV type: {}", tlv_type));
 
     // Only save to dynamic metadata if this type of TLV is needed.
+    std::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx),
+                                      tlv_value_length);
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
     if (nullptr != key_value_pair) {
       ProtobufWkt::Value metadata_value;
-      metadata_value.set_string_value(reinterpret_cast<char const*>(tlvs.data() + idx),
-                                      tlv_value_length);
+      metadata_value.set_string_value(tlv_value);
 
       std::string metadata_key = key_value_pair->metadata_namespace().empty()
                                      ? "envoy.filters.listener.proxy_protocol"
@@ -407,24 +414,14 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
       ENVOY_LOG(debug, fmt::format("XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
                                    "key_value_pair->key(): {}, metadata: {}",
                                    metadata_key, key_value_pair->key(), metadata.DebugString()));
-
-      // Save TLV to the filter state.
-      if (cb_->filterState().hasData<Network::ProxyProtocolFilterState>(FilterStateKey)) {
-        ENVOY_LOG(debug, fmt::format("XXX adding {} to ProxyProtocolFilterState", tlv_type));
-        auto& state =
-            cb_->filterState().getDataMutable<Network::ProxyProtocolFilterState>(FilterStateKey);
-        Network::ProxyProtocolTLV tlv;
-        tlv.type = tlv_type;
-        tlv.key = key_value_pair->key();
-        tlv.value = metadata_value.string_value();
-        // if (!state.value().tlv_vector_) {
-        //   state.value().tlv_vector_ = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
-        // }
-        state.value().tlv_vector_->emplace_back(std::move(tlv));
-      }
-
     } else {
       ENVOY_LOG(trace, "proxy_protocol: Skip TLV of type {} since it's not needed", tlv_type);
+    }
+
+    // Save TLV to the filter state.
+    if (config_->isPassThroughTlvTypeNeeded(tlv_type)) {
+        ENVOY_LOG(debug, fmt::format("XXX adding {} to parsed tlvs", tlv_type));
+        parsed_tlvs_.emplace_back(tlv_type, std::string(tlv_value));
     }
 
     idx += tlv_value_length;

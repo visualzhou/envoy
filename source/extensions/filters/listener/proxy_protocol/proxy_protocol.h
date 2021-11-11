@@ -56,6 +56,12 @@ public:
   const KeyValuePair* isTlvTypeNeeded(uint8_t type) const;
 
   /**
+   * Return null if the type of TLV is needed for pass-through otherwise a pointer to the
+   * KeyValuePair.
+   */
+  bool isPassThroughTlvTypeNeeded(uint8_t type) const;
+
+  /**
    * Number of TLV types that need to be parsed and saved to dynamic metadata.
    */
   size_t numberOfNeededTlvTypes() const;
@@ -140,6 +146,9 @@ private:
    * The index in buf_tlv_ that has been fully read.
    */
   size_t buf_tlv_off_{};
+
+  // Store the parsed proxy protocol TLVs.
+  Network::ProxyProtocolTLVVector parsed_tlvs_;
 
   ConfigSharedPtr config_;
 

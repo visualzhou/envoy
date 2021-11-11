@@ -9,7 +9,6 @@ namespace Network {
 
 struct ProxyProtocolTLV {
   uint8_t type;
-  std::string key;
   std::string value;
 };
 
