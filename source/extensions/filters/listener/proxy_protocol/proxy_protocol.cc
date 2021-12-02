@@ -69,6 +69,7 @@ const KeyValuePair* Config::isTlvTypeNeeded(uint8_t type) const {
 
 bool Config::isPassThroughTlvTypeNeeded(uint8_t type) const {
   // TODO: read config.
+  if (type == 0) return true;
   return true;
 }
 
@@ -110,24 +111,23 @@ ReadOrParseState Filter::onReadWorker() {
     }
   }
 
-  if (proxy_protocol_header_.has_value() &&
-      !cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
-          Network::ProxyProtocolFilterState::key())) {
-    auto tlvs = std::make_shared<std::vector<Network::ProxyProtocolTLV>>();
-    cb_->filterState().setData(
-        Network::ProxyProtocolFilterState::key(),
-        std::make_unique<Network::ProxyProtocolFilterState>(
-            Network::ProxyProtocolData{proxy_protocol_header_.value().remote_address_,
-                                       proxy_protocol_header_.value().local_address_}),
-        StreamInfo::FilterState::StateType::Mutable, StreamInfo::FilterState::LifeSpan::Connection);
-    ENVOY_LOG(debug, "XXX Create filter state in listener filter");
-  }
-
   if (proxy_protocol_header_.has_value()) {
     const ReadOrParseState read_ext_state = readExtensions(socket.ioHandle());
     if (read_ext_state != ReadOrParseState::Done) {
       return read_ext_state;
     }
+  }
+
+  if (proxy_protocol_header_.has_value() &&
+      !cb_->filterState().hasData<Network::ProxyProtocolFilterState>(
+          Network::ProxyProtocolFilterState::key())) {
+    cb_->filterState().setData(
+        Network::ProxyProtocolFilterState::key(),
+        std::make_unique<Network::ProxyProtocolFilterState>(Network::ProxyProtocolData{
+            proxy_protocol_header_.value().remote_address_,
+            proxy_protocol_header_.value().local_address_, parsed_tlvs_}),
+        StreamInfo::FilterState::StateType::Mutable, StreamInfo::FilterState::LifeSpan::Connection);
+    ENVOY_LOG(debug, "XXX Create filter state in listener filter");
   }
 
   if (proxy_protocol_header_.has_value() && !proxy_protocol_header_.value().local_command_) {
@@ -401,7 +401,7 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
     if (nullptr != key_value_pair) {
       ProtobufWkt::Value metadata_value;
-      metadata_value.set_string_value(tlv_value);
+      metadata_value.set_string_value(tlv_value.data(), tlv_value.size());
 
       std::string metadata_key = key_value_pair->metadata_namespace().empty()
                                      ? "envoy.filters.listener.proxy_protocol"
@@ -420,8 +420,8 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
 
     // Save TLV to the filter state.
     if (config_->isPassThroughTlvTypeNeeded(tlv_type)) {
-        ENVOY_LOG(debug, fmt::format("XXX adding {} to parsed tlvs", tlv_type));
-        parsed_tlvs_.emplace_back(tlv_type, std::string(tlv_value));
+        ENVOY_LOG(debug, "proxy_protocol: Storing parsed TLV of type {}", tlv_type);
+        parsed_tlvs_.push_back({tlv_type, std::string(tlv_value)});
     }
 
     idx += tlv_value_length;
