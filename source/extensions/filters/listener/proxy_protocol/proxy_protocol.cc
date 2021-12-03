@@ -68,7 +68,8 @@ const KeyValuePair* Config::isTlvTypeNeeded(uint8_t type) const {
 
 bool Config::isPassThroughTlvTypeNeeded(uint8_t type) const {
   // TODO: read config.
-  if (type == 0) return true;
+  if (type == 0)
+    return true;
   return true;
 }
 
@@ -395,8 +396,7 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
     ENVOY_LOG(debug, fmt::format("XXX Parsing TLV type: {}", tlv_type));
 
     // Only save to dynamic metadata if this type of TLV is needed.
-    absl::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx),
-                                      tlv_value_length);
+    absl::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx), tlv_value_length);
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
     if (nullptr != key_value_pair) {
       ProtobufWkt::Value metadata_value;
@@ -419,8 +419,8 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
 
     // Save TLV to the filter state.
     if (config_->isPassThroughTlvTypeNeeded(tlv_type)) {
-        ENVOY_LOG(debug, "proxy_protocol: Storing parsed TLV of type {}", tlv_type);
-        parsed_tlvs_.push_back({tlv_type, std::string(tlv_value)});
+      ENVOY_LOG(debug, "proxy_protocol: Storing parsed TLV of type {}", tlv_type);
+      parsed_tlvs_.push_back({tlv_type, std::string(tlv_value)});
     }
 
     idx += tlv_value_length;
