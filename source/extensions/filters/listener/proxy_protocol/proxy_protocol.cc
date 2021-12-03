@@ -6,7 +6,6 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <string_view>
 
 #include "envoy/common/exception.h"
 #include "envoy/common/platform.h"
@@ -396,7 +395,7 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
     ENVOY_LOG(debug, fmt::format("XXX Parsing TLV type: {}", tlv_type));
 
     // Only save to dynamic metadata if this type of TLV is needed.
-    std::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx),
+    absl::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx),
                                       tlv_value_length);
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
     if (nullptr != key_value_pair) {
