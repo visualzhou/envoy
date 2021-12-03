@@ -124,6 +124,8 @@ void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data,
                             Buffer::Instance& out) {
   uint16_t extension_length = 0;
   for (auto& tlv : prox_proto_data.tlv_vector_) {
+    // TODO: handle overflow without crashing.
+    assert(tlv.value.size() + 3 < std::numeric_limits<uint16_t>::max() - extension_length);
     extension_length += 3 + tlv.value.size();
   }
   const auto& src = *prox_proto_data.src_addr_->ip();
@@ -134,10 +136,8 @@ void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data,
   // Generate the TLV vector.
   for (auto& tlv : prox_proto_data.tlv_vector_) {
     out.add(&tlv.type, 1);
-    // TODO: check the size of value is less than 2^16.
-    size_t size = tlv.value.size();
-    out.add(reinterpret_cast<char*>(&size) + 1, 1);
-    out.add(&size, 1);
+    uint16_t size = htons(static_cast<uint16_t>(tlv.value.size()));
+    out.add(&size, 2);
     out.add(tlv.value.c_str(), tlv.value.size());
   }
 }
