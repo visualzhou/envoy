@@ -67,12 +67,13 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
   address_family_and_protocol |= PROXY_PROTO_V2_TRANSPORT_STREAM;
   out.add(&address_family_and_protocol, 1);
 
-  uint8_t addr_length[2]{0, 0};
+  uint16_t addr_length;
+  uint16_t addr_length_n; // Network byte order.
   switch (ip_version) {
   case Network::Address::IpVersion::v4: {
-    // TODO: handle network order correctly.
-    addr_length[1] = PROXY_PROTO_V2_ADDR_LEN_INET + extension_length;
-    out.add(addr_length, 2);
+    addr_length = PROXY_PROTO_V2_ADDR_LEN_INET + extension_length;
+    addr_length_n = htons(addr_length);
+    out.add(&addr_length_n, 2);
     const uint32_t net_src_addr =
         Network::Address::Ipv4Instance(src_addr, src_port).ip()->ipv4()->address();
     const uint32_t net_dst_addr =
@@ -82,9 +83,9 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
     break;
   }
   case Network::Address::IpVersion::v6: {
-    // TODO: support TLV on ipv6.
-    addr_length[1] = PROXY_PROTO_V2_ADDR_LEN_INET6;
-    out.add(addr_length, 2);
+    addr_length = PROXY_PROTO_V2_ADDR_LEN_INET6 + extension_length;
+    addr_length_n = htons(addr_length);
+    out.add(&addr_length_n, 2);
     const absl::uint128 net_src_addr =
         Network::Address::Ipv6Instance(src_addr, src_port).ip()->ipv6()->address();
     const absl::uint128 net_dst_addr =
