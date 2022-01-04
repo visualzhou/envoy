@@ -82,7 +82,7 @@ void UpstreamProxyProtocolSocket::generateHeaderV2() {
       ENVOY_LOG(debug, fmt::format("XXX Got TLV on upstream: first type: {}",
                                    options.tlv_vector_.front().type));
     }
-    Common::ProxyProtocol::generateV2HeaderAndTLV(options, header_buffer_);
+    Common::ProxyProtocol::generateV2Header(options, header_buffer_);
   }
 }
 

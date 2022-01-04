@@ -43,6 +43,12 @@ void generateV1Header(const Network::Address::Ip& source_address,
 
 void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
                       uint32_t dst_port, Network::Address::IpVersion ip_version,
+                      Buffer::Instance& out) {
+  generateV2Header(src_addr, dst_addr, src_port, dst_port, ip_version, 0, out);
+}
+
+void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
+                      uint32_t dst_port, Network::Address::IpVersion ip_version,
                       uint16_t extension_length, Buffer::Instance& out) {
   out.add(PROXY_PROTO_V2_SIGNATURE, PROXY_PROTO_V2_SIGNATURE_LEN);
 
@@ -120,12 +126,11 @@ void generateV2LocalHeader(Buffer::Instance& out) {
   out.add(addr_fam_protocol_and_length, 4);
 }
 
-void generateV2HeaderAndTLV(const Network::ProxyProtocolData& prox_proto_data,
-                            Buffer::Instance& out) {
+void generateV2Header(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out) {
   uint16_t extension_length = 0;
   for (auto& tlv : prox_proto_data.tlv_vector_) {
     // TODO: handle overflow without crashing.
-    assert(tlv.value.size() + 3 < std::numeric_limits<uint16_t>::max() - extension_length);
+    // assert(tlv.value.size() + 3u < std::numeric_limits<uint16_t>::max() - extension_length);
     extension_length += 3 + tlv.value.size();
   }
   const auto& src = *prox_proto_data.src_addr_->ip();
