@@ -1,13 +1,11 @@
 #include "source/common/network/transport_socket_options_impl.h"
 
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "source/common/common/logger.h"
 #include "source/common/common/scalar_to_byte_vector.h"
 #include "source/common/common/utility.h"
 #include "source/common/network/application_protocol.h"
@@ -91,8 +89,6 @@ TransportSocketOptionsUtility::fromFilterState(const StreamInfo::FilterState& fi
   }
 
   if (filter_state.hasData<ProxyProtocolFilterState>(ProxyProtocolFilterState::key())) {
-    // ENVOY_LOG(debug, "XXX create options");
-    std::cout << "XXX create options" << std::endl;
     const auto& proxy_protocol_filter_state =
         filter_state.getDataReadOnly<ProxyProtocolFilterState>(ProxyProtocolFilterState::key());
     proxy_protocol_options.emplace(proxy_protocol_filter_state.value());

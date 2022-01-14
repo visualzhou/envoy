@@ -44,14 +44,10 @@ namespace Extensions {
 namespace ListenerFilters {
 namespace ProxyProtocol {
 
-const std::string FilterStateKey("envoy.network.proxy_protocol_options");
-
 Config::Config(
     Stats::Scope& scope,
     const envoy::extensions::filters::listener::proxy_protocol::v3::ProxyProtocol& proto_config)
     : stats_{ALL_PROXY_PROTOCOL_STATS(POOL_COUNTER(scope))} {
-  ENVOY_LOG(debug,
-            fmt::format("XXX ProxyProtocol Config constructor: {}", proto_config.DebugString()));
   for (const auto& rule : proto_config.rules()) {
     tlv_types_[0xFF & rule.tlv_type()] = rule.on_tlv_present();
   }
@@ -110,7 +106,6 @@ ReadOrParseState Filter::onReadWorker() {
       return read_header_state;
     }
   }
-
   if (proxy_protocol_header_.has_value()) {
     const ReadOrParseState read_ext_state = readExtensions(socket.ioHandle());
     if (read_ext_state != ReadOrParseState::Done) {
@@ -127,7 +122,6 @@ ReadOrParseState Filter::onReadWorker() {
             proxy_protocol_header_.value().remote_address_,
             proxy_protocol_header_.value().local_address_, parsed_tlvs_}),
         StreamInfo::FilterState::StateType::Mutable, StreamInfo::FilterState::LifeSpan::Connection);
-    ENVOY_LOG(debug, "XXX Create filter state in listener filter");
   }
 
   if (proxy_protocol_header_.has_value() && !proxy_protocol_header_.value().local_command_) {
@@ -156,9 +150,6 @@ ReadOrParseState Filter::onReadWorker() {
       socket.connectionInfoProvider().restoreLocalAddress(
           proxy_protocol_header_.value().local_address_);
     }
-    ENVOY_LOG(debug, "XXX remote address: {}, local address: {}",
-              proxy_protocol_header_.value().remote_address_->asString(),
-              proxy_protocol_header_.value().local_address_->asString());
     socket.connectionInfoProvider().setRemoteAddress(
         proxy_protocol_header_.value().remote_address_);
   }
@@ -393,8 +384,6 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
       return false;
     }
 
-    ENVOY_LOG(debug, fmt::format("XXX Parsing TLV type: {}", tlv_type));
-
     // Only save to dynamic metadata if this type of TLV is needed.
     absl::string_view tlv_value(reinterpret_cast<char const*>(tlvs.data() + idx), tlv_value_length);
     auto key_value_pair = config_->isTlvTypeNeeded(tlv_type);
@@ -410,16 +399,13 @@ bool Filter::parseTlvs(const std::vector<uint8_t>& tlvs) {
           (*cb_->dynamicMetadata().mutable_filter_metadata())[metadata_key]);
       metadata.mutable_fields()->insert({key_value_pair->key(), metadata_value});
       cb_->setDynamicMetadata(metadata_key, metadata);
-      ENVOY_LOG(debug, fmt::format("XXX proxy_protocol: Adding TLV to metadata: metadata_key: {}, "
-                                   "key_value_pair->key(): {}, metadata: {}",
-                                   metadata_key, key_value_pair->key(), metadata.DebugString()));
     } else {
       ENVOY_LOG(trace, "proxy_protocol: Skip TLV of type {} since it's not needed", tlv_type);
     }
 
     // Save TLV to the filter state.
     if (config_->isPassThroughTlvTypeNeeded(tlv_type)) {
-      ENVOY_LOG(debug, "proxy_protocol: Storing parsed TLV of type {}", tlv_type);
+      ENVOY_LOG(trace, "proxy_protocol: Storing parsed TLV of type {}", tlv_type);
       parsed_tlvs_.push_back({tlv_type, std::string(tlv_value)});
     }
 

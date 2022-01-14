@@ -375,9 +375,8 @@ Network::FilterStatus Filter::initializeUpstreamConnection() {
           std::make_unique<Network::ProxyProtocolFilterState>(Network::ProxyProtocolData{
               downstreamConnection()->connectionInfoProvider().remoteAddress(),
               downstreamConnection()->connectionInfoProvider().localAddress()}),
-          StreamInfo::FilterState::StateType::Mutable,
+          StreamInfo::FilterState::StateType::ReadOnly,
           StreamInfo::FilterState::LifeSpan::Connection);
-      ENVOY_LOG(debug, "XXX Filter::initializeUpstreamConnection in tcp_proxy");
     }
     transport_socket_options_ = Network::TransportSocketOptionsUtility::fromFilterState(
         downstreamConnection()->streamInfo().filterState());
