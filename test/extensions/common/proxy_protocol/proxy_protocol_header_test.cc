@@ -159,6 +159,20 @@ TEST(ProxyProtocolHeaderTest, GeneratesV2IPv6HeaderWithTLV) {
   EXPECT_TRUE(TestUtility::buffersEqual(expectedBuff, buff));
 }
 
+TEST(ProxyProtocolHeaderTest, GeneratesV2WithTLVExceedingLengthLimit) {
+  auto src_addr =
+      Network::Address::InstanceConstSharedPtr(new Network::Address::Ipv4Instance("1.2.3.4", 773));
+  auto dst_addr =
+      Network::Address::InstanceConstSharedPtr(new Network::Address::Ipv4Instance("0.1.1.2", 513));
+  const std::string long_tlv(65536, 'a');
+  Network::ProxyProtocolTLV tlv{0x5, long_tlv};
+  Network::ProxyProtocolData proxy_proto_data{src_addr, dst_addr, {tlv}};
+  Buffer::OwnedImpl buff{};
+
+  EXPECT_THROW_WITH_MESSAGE(generateV2Header(proxy_proto_data, buff), EnvoyException,
+                            "proxy protocol TLVs exceed length limit 65535, already got 65539");
+}
+
 } // namespace
 } // namespace ProxyProtocol
 } // namespace Common

@@ -62,10 +62,8 @@ const KeyValuePair* Config::isTlvTypeNeeded(uint8_t type) const {
   return nullptr;
 }
 
-bool Config::isPassThroughTlvTypeNeeded(uint8_t type) const {
+bool Config::isPassThroughTlvTypeNeeded(uint8_t) const {
   // TODO: read config.
-  if (type == 0)
-    return true;
   return true;
 }
 

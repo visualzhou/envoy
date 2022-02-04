@@ -43,12 +43,6 @@ void generateV1Header(const Network::Address::Ip& source_address,
 
 void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
                       uint32_t dst_port, Network::Address::IpVersion ip_version,
-                      Buffer::Instance& out) {
-  generateV2Header(src_addr, dst_addr, src_port, dst_port, ip_version, 0, out);
-}
-
-void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
-                      uint32_t dst_port, Network::Address::IpVersion ip_version,
                       uint16_t extension_length, Buffer::Instance& out) {
   out.add(PROXY_PROTO_V2_SIGNATURE, PROXY_PROTO_V2_SIGNATURE_LEN);
 
@@ -102,10 +96,41 @@ void generateV2Header(const std::string& src_addr, const std::string& dst_addr, 
   out.add(&net_dst_port, 2);
 }
 
+void generateV2Header(const std::string& src_addr, const std::string& dst_addr, uint32_t src_port,
+                      uint32_t dst_port, Network::Address::IpVersion ip_version,
+                      Buffer::Instance& out) {
+  generateV2Header(src_addr, dst_addr, src_port, dst_port, ip_version, 0, out);
+}
+
 void generateV2Header(const Network::Address::Ip& source_address,
                       const Network::Address::Ip& dest_address, Buffer::Instance& out) {
   generateV2Header(source_address.addressAsString(), dest_address.addressAsString(),
                    source_address.port(), dest_address.port(), source_address.version(), 0, out);
+}
+
+void generateV2Header(const Network::ProxyProtocolData& proxy_proto_data, Buffer::Instance& out) {
+  uint64_t extension_length = 0;
+  for (auto&& tlv : proxy_proto_data.tlv_vector_) {
+    extension_length += PROXY_PROTO_V2_TLV_TYPE_LENGTH_LEN + tlv.value.size();
+    if (extension_length > std::numeric_limits<uint16_t>::max()) {
+      ExceptionUtil::throwEnvoyException(
+          fmt::format("proxy protocol TLVs exceed length limit {}, already got {}",
+                      std::numeric_limits<uint16_t>::max(), extension_length));
+    }
+  }
+  assert(extension_length <= std::numeric_limits<uint16_t>::max());
+  const auto& src = *proxy_proto_data.src_addr_->ip();
+  const auto& dst = *proxy_proto_data.dst_addr_->ip();
+  generateV2Header(src.addressAsString(), dst.addressAsString(), src.port(), dst.port(),
+                   src.version(), static_cast<uint16_t>(extension_length), out);
+
+  // Generate the TLV vector.
+  for (auto& tlv : proxy_proto_data.tlv_vector_) {
+    out.add(&tlv.type, 1);
+    uint16_t size = htons(static_cast<uint16_t>(tlv.value.size()));
+    out.add(&size, sizeof(uint16_t));
+    out.add(tlv.value.c_str(), tlv.value.size());
+  }
 }
 
 void generateProxyProtoHeader(const envoy::config::core::v3::ProxyProtocolConfig& config,
@@ -125,27 +150,6 @@ void generateV2LocalHeader(Buffer::Instance& out) {
   out.add(PROXY_PROTO_V2_SIGNATURE, PROXY_PROTO_V2_SIGNATURE_LEN);
   const uint8_t addr_fam_protocol_and_length[4]{PROXY_PROTO_V2_VERSION << 4, 0, 0, 0};
   out.add(addr_fam_protocol_and_length, 4);
-}
-
-void generateV2Header(const Network::ProxyProtocolData& prox_proto_data, Buffer::Instance& out) {
-  uint16_t extension_length = 0;
-  for (auto& tlv : prox_proto_data.tlv_vector_) {
-    // TODO: handle overflow without crashing.
-    // assert(tlv.value.size() + 3u < std::numeric_limits<uint16_t>::max() - extension_length);
-    extension_length += 3 + tlv.value.size();
-  }
-  const auto& src = *prox_proto_data.src_addr_->ip();
-  const auto& dst = *prox_proto_data.dst_addr_->ip();
-  generateV2Header(src.addressAsString(), dst.addressAsString(), src.port(), dst.port(),
-                   src.version(), extension_length, out);
-
-  // Generate the TLV vector.
-  for (auto& tlv : prox_proto_data.tlv_vector_) {
-    out.add(&tlv.type, 1);
-    uint16_t size = htons(static_cast<uint16_t>(tlv.value.size()));
-    out.add(&size, 2);
-    out.add(tlv.value.c_str(), tlv.value.size());
-  }
 }
 
 } // namespace ProxyProtocol
