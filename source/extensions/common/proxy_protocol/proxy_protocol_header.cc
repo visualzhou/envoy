@@ -125,7 +125,7 @@ void generateV2Header(const Network::ProxyProtocolData& proxy_proto_data, Buffer
                    src.version(), static_cast<uint16_t>(extension_length), out);
 
   // Generate the TLV vector.
-  for (auto& tlv : proxy_proto_data.tlv_vector_) {
+  for (auto&& tlv : proxy_proto_data.tlv_vector_) {
     out.add(&tlv.type, 1);
     uint16_t size = htons(static_cast<uint16_t>(tlv.value.size()));
     out.add(&size, sizeof(uint16_t));
